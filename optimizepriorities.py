@@ -1,50 +1,25 @@
-import logging
-import re
-from typing import Dict, Any, List
+from typing import List, Dict
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+class OptimizePriorities:
+    def __init__(self):
+        self.task_queue: List[Dict] = []
 
-def parse_tasks(task_list_str):
-    tasks = []
-    lines = re.split(r"\n", task_list_str)
-    
-    for line in lines:
-        line = line.strip()
-        if not line:
-            continue
-        line = re.sub(r"^\d+\.\s*|^-\s*|^\*\s*", "", line)
-        importance = "Medium"
-        importance_match = re.search(r"\[(High|Medium|Low)\]", line, re.IGNORECASE)
-        if importance_match:
-            importance = importance_match.group(1).capitalize()
-            line = line.replace(importance_match.group(0), "").strip()
-        urgency = "Normal"
-        urgency_match = re.search(r"\((Urgent|Soon|Later|Normal)\)", line, re.IGNORECASE)
-        if urgency_match:
-            urgency = urgency_match.group(1).capitalize()
-            line = line.replace(urgency_match.group(0), "").strip()
-        
-        tasks.append({
-            "task": line,
-            "importance": importance,
+    def add_task(self, name: str, impact: int, urgency: int, feasibility: int):
+        score = self.compute_score(impact, urgency, feasibility)
+        self.task_queue.append({
+            "name": name,
+            "impact": impact,
             "urgency": urgency,
-            "score": 0
+            "feasibility": feasibility,
+            "score": score
         })
-    
-    return tasks
+        self.task_queue.sort(key=lambda x: x["score"], reverse=True)
 
-def run(params):
-    try:
-        task_list = params.get("task_list", "")
-        if not task_list:
-            return {"error": "No task list provided", "success": False}
-        tasks = parse_tasks(task_list)
-        return {
-            "success": True,
-            "tasks": tasks,
-            "count": len(tasks)
-        }
-    except Exception as e:
-        logger.error(f"Error: {str(e)}")
-        return {"error": f"Error processing tasks: {str(e)}", "success": False}
+    def compute_score(self, impact: int, urgency: int, feasibility: int) -> float:
+        return round((impact * 0.5 + urgency * 0.3 + feasibility * 0.2), 2)
+
+    def get_top_tasks(self, limit: int = 5) -> List[Dict]:
+        return self.task_queue[:limit]
+
+    def recommend_pause(self) -> bool:
+        return any(task["impact"] > 7 and task["feasibility"] < 3 for task in self.task_queue)
